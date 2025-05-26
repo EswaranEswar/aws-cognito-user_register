@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - /app/node_modules
+      - ./faker-users.json:/app/faker-users.json
+      - ./cookies.json:/app/cookies.json
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env
+    command: ["pnpm", "run", "start:dev"] 

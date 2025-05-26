@@ -20,4 +20,12 @@ export class AppConfigService {
   get awsSecretAccessKey(): string {
     return this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
   }
+
+  get cognitoClientId(): string {
+    return this.configService.get<string>('COGNITO_CLIENT_ID')
+  }
+
+  get cognitoClientSecret(): string {
+    return this.configService.get<string>('COGNITO_CLIENT_SECRET');
+  }
 }

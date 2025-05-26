@@ -21,16 +21,22 @@
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.782.0",
+    "@faker-js/faker": "^9.8.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^10.0.0",
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^10.0.0",
+    "axios": "^1.9.0",
+    "axios-cookiejar-support": "^6.0.2",
+    "fs": "0.0.1-security",
     "nest-aws-sdk": "^3.1.0",
     "nestjs-pino": "^4.4.0",
+    "newman": "^6.2.1",
     "p-limit": "^3.1.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
+    "tough-cookie": "^5.1.2",
     "zod": "^3.24.2"
   },
   "devDependencies": {
