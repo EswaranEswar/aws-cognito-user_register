@@ -8,10 +8,11 @@ services:
     volumes:
       - ./data:/app/data
       - /app/node_modules
-      - ./faker-users.json:/app/faker-users.json
-      - ./cookies.json:/app/cookies.json
     environment:
       - NODE_ENV=development
     env_file:
       - .env
-    command: ["pnpm", "run", "start:dev"] 
+    command: ["pnpm", "run", "start:dev"]
+
+volumes:
+  mongodb_data:

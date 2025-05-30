@@ -13,15 +13,13 @@ import {
   AdminSetUserPasswordCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { AppConfigService } from '../config/config.service';
-import * as path from 'path';
-import * as fs from 'fs';
 import * as crypto from 'crypto';
 const pLimit = require('p-limit');
 
 @Injectable()
 export class CognitoService {
   private client: CognitoIdentityProviderClient;
-  private limit = pLimit(10); // 10 concurrent requests
+  private limit = pLimit(10);
 
   constructor(private config: AppConfigService) {
     this.client = new CognitoIdentityProviderClient({
@@ -31,12 +29,6 @@ export class CognitoService {
         secretAccessKey: this.config.awsSecretAccessKey,
       },
     });
-  }
-
-  async getUserPools(): Promise<any[]> {
-    const command = new ListUserPoolsCommand({ MaxResults: 10 });
-    const response = await this.client.send(command);
-    return response.UserPools || [];
   }
 
   async getAllUsers(): Promise<any[]> {
@@ -56,12 +48,20 @@ export class CognitoService {
         };
       });
 
-      console.log(JSON.stringify(formattedUsers, null, 2));
+      console.log(JSON.stringify(formattedUsers, null, 2)); 
       return users;
     } catch (error) {
       console.error('Failed to list users:', error.message);
       throw error;
     }
+  }
+
+  async getUserPools(): Promise<any[]> {
+    const command = new ListUserPoolsCommand({
+      MaxResults: 10,
+    });
+    const response = await this.client.send(command);
+    return response.UserPools || [];
   }
 
   async createUserPool(poolName: string): Promise<void> {
@@ -91,7 +91,7 @@ export class CognitoService {
       const clientCommand = new CreateUserPoolClientCommand({
         UserPoolId: userPoolId,
         ClientName: `${poolName}_client`,
-        GenerateSecret: false,  // No client secret generated
+        GenerateSecret: false,
         ExplicitAuthFlows: [
           'ALLOW_USER_PASSWORD_AUTH',
           'ALLOW_REFRESH_TOKEN_AUTH',
@@ -111,8 +111,6 @@ export class CognitoService {
   }
 
   async createUser(name: string, email: string, password: string): Promise<void> {
-    console.log("Password from Cognito create user:", password);
-    
     return this.limit(async () => {
       const createUserCommand = new AdminCreateUserCommand({
         UserPoolId: this.config.cognitoUserPoolId,
@@ -127,16 +125,14 @@ export class CognitoService {
       });
   
       try {
-        // Create the user
         await this.client.send(createUserCommand);
         console.log(`User ${name} created successfully.`);
   
-        // // Set the given password as the permanent password
         const setPasswordCommand = new AdminSetUserPasswordCommand({
           UserPoolId: this.config.cognitoUserPoolId,
           Username: email,
           Password: password,
-          Permanent: true, // Mark as permanent password
+          Permanent: true,
         });
   
         await this.client.send(setPasswordCommand);
@@ -147,11 +143,8 @@ export class CognitoService {
       }
     });
   }
-  
-  
 
   async loginUser(email: string, password: string) {
-    // Generate the SecretHash
     const secretHash = crypto
       .createHmac('sha256', this.config.cognitoClientSecret)
       .update(email + this.config.cognitoClientId)
@@ -170,38 +163,11 @@ export class CognitoService {
     try {
       const response = await this.client.send(command);
   
-      // Extract tokens from the response
       const idToken = response.AuthenticationResult?.IdToken;
       const accessToken = response.AuthenticationResult?.AccessToken;
       const refreshToken = response.AuthenticationResult?.RefreshToken;
-      const sessionToken = response.Session || null;  // Handle undefined
-  
-      console.log('Login successful in cognito');
-  
-      // Create login data object
-      const userData = {
-        email,
-        sessionToken, // May be null
-        timestamp: new Date().toISOString(), // Track login time
-      };
-  
-      const filePath = path.join(__dirname, '../../logged-in-users.json');
-      let users = [];
-  
-      // Check if the file exists and read existing data
-      if (fs.existsSync(filePath)) {
-        const data = fs.readFileSync(filePath, 'utf-8');
-        users = JSON.parse(data);
-      }
-  
-      // Add the new login data
-      users.push(userData);
-  
-      // Save updated data to the JSON file
-      fs.writeFileSync(filePath, JSON.stringify(users, null, 2), 'utf-8');
-      console.log(`Login data saved for user: ${email}`);
-  
-      // Return a structured response that matches what runUsers.js expects
+      const sessionToken = response.Session || null;
+        
       return { 
         result: {
           tokens: {
@@ -210,7 +176,6 @@ export class CognitoService {
             refreshToken
           }
         },
-        // Also include the original format for backward compatibility
         idToken, 
         accessToken, 
         refreshToken, 

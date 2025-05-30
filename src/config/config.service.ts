@@ -28,4 +28,12 @@ export class AppConfigService {
   get cognitoClientSecret(): string {
     return this.configService.get<string>('COGNITO_CLIENT_SECRET');
   }
+
+  get mongoUrl(): string {
+    return this.configService.get<string>('MONGODB_URI');
+  }
+
+  get port(): number {
+    return this.configService.get<number>('PORT');
+  }
 }
