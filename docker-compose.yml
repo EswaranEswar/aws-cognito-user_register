@@ -4,12 +4,14 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "3006:3006"
     volumes:
       - ./data:/app/data
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - COOKIES_API_URL=http://localhost:3006/api/users/get-cookies
+      - QA_SERVER_URL=https://app.qa.astraops.ai
     env_file:
       - .env
     command: ["pnpm", "run", "start:dev"]

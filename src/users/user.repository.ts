@@ -29,4 +29,10 @@ export class UserRepository {
         return this.databaseService.getModel({ name: 'User', schema: UserSchema });
     }
 
+    async getCookies(input: string): Promise<string[]> {
+        const model = await this.databaseService.getModel({ name: 'User', schema: UserSchema });
+        const users = await model.find({}).lean().exec();
+        return users.map(user => user[input]);
+    }
+
 }

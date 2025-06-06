@@ -1,9 +1,9 @@
 FROM node:20-bullseye-slim
 ## Setting base where the applicaiton runs.
  
-# Install build tools and python3, then clean up
+# Install build tools, python3, and procps (includes ps command), then clean up
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential python3 && \
+    apt-get install -y --no-install-recommends build-essential python3 procps && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -22,7 +22,7 @@ COPY . .
 ## First dot, local files in the machine.
 ## Second dot, destination folder, which is working directory.
  
-EXPOSE 3000
+EXPOSE 3006
 ## Exposing the port
  
 CMD ["pnpm", "run", "start:dev"]

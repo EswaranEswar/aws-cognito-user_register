@@ -19,7 +19,7 @@ const pLimit = require('p-limit');
 @Injectable()
 export class CognitoService {
   private client: CognitoIdentityProviderClient;
-  private limit = pLimit(10);
+  private limit = pLimit(25); // Increased from 10 to 25 for better concurrency
 
   constructor(private config: AppConfigService) {
     this.client = new CognitoIdentityProviderClient({

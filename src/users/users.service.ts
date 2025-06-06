@@ -65,4 +65,8 @@ export class UsersService {
     );
   }
 
+  async getCookies(input: string) {
+    return await this.userRepository.getCookies(input);
+  }
+
 }

@@ -94,4 +94,9 @@ export class UsersController {
     return await this.getCookiesService.fetchAllCookies();
   }
 
+  @Get('get-cookies')
+  async getCookies() {
+    return await this.usersService.getCookies('cookies');
+  }
+
 }
