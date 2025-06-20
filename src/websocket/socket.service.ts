@@ -9,10 +9,10 @@ const WS_PATH = '/socket.io';
 const WS_TOPIC = 'update-position';
 
 // Test Parameters
-const TARGET_USERS = 10;
-const MESSAGES_PER_CLIENT = 10;
-const MESSAGE_INTERVAL_MS = 1000;
-const RAMP_UP_DELAY_MS = 200;
+const TARGET_USERS = 20;
+const MESSAGES_PER_CLIENT = 20;
+const MESSAGE_INTERVAL_MS = 10;
+const RAMP_UP_DELAY_MS = 50;
 
 // Performance Metrics Interface
 interface PerformanceMetrics {
