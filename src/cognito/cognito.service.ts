@@ -41,14 +41,16 @@ export class CognitoService {
       const users = response.Users || [];
 
       const formattedUsers = users.map((user) => {
-        const emailAttr = user.Attributes?.find(attr => attr.Name === 'email');
+        const emailAttr = user.Attributes?.find(
+          (attr) => attr.Name === 'email',
+        );
         return {
           username: user.Username,
           email: emailAttr?.Value || 'N/A',
         };
       });
 
-      console.log(JSON.stringify(formattedUsers, null, 2)); 
+      console.log(JSON.stringify(formattedUsers, null, 2));
       return users;
     } catch (error) {
       console.error('Failed to list users:', error.message);
@@ -110,7 +112,11 @@ export class CognitoService {
     }
   }
 
-  async createUser(name: string, email: string, password: string): Promise<void> {
+  async createUser(
+    name: string,
+    email: string,
+    password: string,
+  ): Promise<void> {
     return this.limit(async () => {
       const createUserCommand = new AdminCreateUserCommand({
         UserPoolId: this.config.cognitoUserPoolId,
@@ -123,18 +129,18 @@ export class CognitoService {
         TemporaryPassword: password,
         MessageAction: 'SUPPRESS',
       });
-  
+
       try {
         await this.client.send(createUserCommand);
         console.log(`User ${name} created successfully.`);
-  
+
         const setPasswordCommand = new AdminSetUserPasswordCommand({
           UserPoolId: this.config.cognitoUserPoolId,
           Username: email,
           Password: password,
           Permanent: true,
         });
-  
+
         await this.client.send(setPasswordCommand);
         console.log(`Password for user ${name} set as permanent.`);
       } catch (error) {
@@ -149,7 +155,7 @@ export class CognitoService {
       .createHmac('sha256', this.config.cognitoClientSecret)
       .update(email + this.config.cognitoClientId)
       .digest('base64');
-  
+
     const command = new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: this.config.cognitoClientId,
@@ -159,27 +165,27 @@ export class CognitoService {
         SECRET_HASH: secretHash,
       },
     });
-  
+
     try {
       const response = await this.client.send(command);
-  
+
       const idToken = response.AuthenticationResult?.IdToken;
       const accessToken = response.AuthenticationResult?.AccessToken;
       const refreshToken = response.AuthenticationResult?.RefreshToken;
       const sessionToken = response.Session || null;
-        
-      return { 
+
+      return {
         result: {
           tokens: {
             idToken,
             accessToken,
-            refreshToken
-          }
+            refreshToken,
+          },
         },
-        idToken, 
-        accessToken, 
-        refreshToken, 
-        sessionToken 
+        idToken,
+        accessToken,
+        refreshToken,
+        sessionToken,
       };
     } catch (error) {
       console.error('Login failed:', error);
@@ -193,7 +199,7 @@ export class CognitoService {
         UserPoolId: this.config.cognitoUserPoolId,
         Username: email,
       });
-  
+
       try {
         await this.client.send(command);
         console.log(`User ${email} deleted successfully.`);
@@ -210,7 +216,9 @@ export class CognitoService {
       const clientId = this.config.cognitoClientId;
 
       if (!userPoolId || !clientId) {
-        console.error('UserPoolId or ClientId is not available in the configuration.');
+        console.error(
+          'UserPoolId or ClientId is not available in the configuration.',
+        );
         throw new Error('UserPoolId or ClientId is missing.');
       }
 
@@ -234,7 +242,7 @@ export class CognitoService {
     }
   }
 
-  async deleteUserPool(userPoolId: string) {  
+  async deleteUserPool(userPoolId: string) {
     try {
       const command = new DeleteUserPoolCommand({ UserPoolId: userPoolId });
       await this.client.send(command);
@@ -245,4 +253,3 @@ export class CognitoService {
     }
   }
 }
-

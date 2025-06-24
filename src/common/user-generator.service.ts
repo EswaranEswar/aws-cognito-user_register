@@ -5,9 +5,9 @@ import { faker } from '@faker-js/faker';
 export class UserGeneratorService {
   generateFakeUsers(count: number, password: string) {
     const newUsers = this.createUniqueUsers(count);
-    return newUsers.map(user => ({
+    return newUsers.map((user) => ({
       ...user,
-      password: password || 'Test@123'
+      password: password || 'Test@123',
     }));
   }
 

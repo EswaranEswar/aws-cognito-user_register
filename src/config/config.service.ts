@@ -22,7 +22,7 @@ export class AppConfigService {
   }
 
   get cognitoClientId(): string {
-    return this.configService.get<string>('COGNITO_CLIENT_ID')
+    return this.configService.get<string>('COGNITO_CLIENT_ID');
   }
 
   get cognitoClientSecret(): string {
@@ -35,5 +35,9 @@ export class AppConfigService {
 
   get port(): number {
     return this.configService.get<number>('PORT');
+  }
+
+  get cookieExpiryHours(): number {
+    return this.configService.get<number>('COOKIE_EXPIRY_HOURS') || 24;
   }
 }

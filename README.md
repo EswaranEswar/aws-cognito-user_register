@@ -32,6 +32,46 @@
 $ pnpm install
 ```
 
+## Cookie Management
+
+This application includes intelligent cookie management for user authentication. The system automatically tracks cookie expiration and only generates new cookies for users who need them.
+
+### Features
+
+- **Smart Cookie Generation**: Only processes users without cookies or with expired cookies
+- **Configurable Expiration**: Cookie expiration time is configurable via `COOKIE_EXPIRY_HOURS` environment variable (default: 24 hours)
+- **Batch Processing**: Processes users in configurable batches for optimal performance
+- **Error Handling**: Comprehensive error handling and retry logic
+
+### Environment Variables
+
+Add these to your `.env` file:
+
+```bash
+COOKIE_EXPIRY_HOURS=24  # Cookie expiration time in hours (default: 24)
+COGNITO_URL=your_cognito_url
+APP_LOGIN_URL=your_app_login_url
+APP_REFERRER=your_app_referrer
+```
+
+### API Endpoints
+
+- `GET /users/generate-cookies` - Generate cookies for users who need them
+- `GET /users/users-needing-cookies` - Get information about users who need cookies
+- `GET /users/get-cookies` - Get all user cookies
+
+### How It Works
+
+1. When you call the `generate-cookies` endpoint, the system:
+   - Queries the database for users without cookies or with expired cookies
+   - Processes only those users in batches
+   - Generates new cookies with expiration timestamps
+   - Updates the user records with new cookies and expiration times
+
+2. Users with valid, non-expired cookies are skipped automatically
+
+3. The system logs detailed information about which users are processed and why
+
 ## Compile and run the project
 
 ```bash

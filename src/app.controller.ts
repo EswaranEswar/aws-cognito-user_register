@@ -4,9 +4,7 @@ import { AppService } from './app.service';
 
 @Controller('app')
 export class AppController {
-  constructor(
-    private readonly appService: AppService
-  ) {}
+  constructor(private readonly appService: AppService) {}
 
   @Get('status')
   connectionStatus(): Promise<MongooseConnectionStatusType> {
@@ -21,10 +19,5 @@ export class AppController {
   @Delete('collections')
   async deleteCollections(@Body() body: { collections: string[] }) {
     return this.appService.deleteCollections(body.collections);
-  }
-
-  @Get('health')
-  healthCheck(): { status: string } {
-    return { status: "UP" };
   }
 }

@@ -13,6 +13,3 @@ async function bootstrap() {
   logger.log(`🚀 Server is running on port ${configService.port}`);
 }
 bootstrap();
-
-
-

@@ -5,7 +5,6 @@ export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
-
   @Prop({ required: true })
   name: string;
 
@@ -17,6 +16,9 @@ export class User {
 
   @Prop()
   cookies?: string;
+
+  @Prop()
+  cookieExpiry?: Date;
 }
 
-export const UserSchema = SchemaFactory.createForClass(User); 
+export const UserSchema = SchemaFactory.createForClass(User);
