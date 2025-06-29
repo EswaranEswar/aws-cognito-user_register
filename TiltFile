@@ -1,0 +1,19 @@
+# Tiltfile for NestJS with Docker Compose + pnpm
+
+# Explicit image name used in docker-compose.yml
+docker_build('app', '.', dockerfile='Dockerfile', live_update=[
+    sync('./src', '/app/src'),
+    sync('./test', '/app/test'),
+    sync('./tsconfig.json', '/app/tsconfig.json'),
+    sync('./package.json', '/app/package.json'),
+    sync('./pnpm-lock.yaml', '/app/pnpm-lock.yaml'),
+    run('pnpm install', trigger=['package.json', 'pnpm-lock.yaml']),
+])
+
+# Load Docker Compose (only once)
+docker_compose('docker-compose.yml')
+
+# Optional: Watch important files manually
+watch_file('Dockerfile')
+watch_file('docker-compose.yml')
+watch_file('.env')

@@ -5,6 +5,8 @@ import {
   Delete,
   Get,
   BadRequestException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { GetCookiesService } from '../cookies/cookies.service';
@@ -18,16 +20,22 @@ export class UsersController {
     private readonly userRepository: UserRepository,
   ) {}
 
-  @Post('create-faker-users')
-  async createFakerUsers(@Body() body: { count: number; password?: string }) {
-    const { count, password } = body;
-    const users = await this.usersService.createFakerUsers(
-      count,
-      password || 'Test@123',
-    );
+  @Post('create-user')
+  async createUser(
+    @Body() body: { email: string; password: string; name?: string },
+  ) {
+    const { email, password, name } = body;
+  
+    if (!email || !password) {
+      throw new HttpException('Email and password are required', HttpStatus.BAD_REQUEST);
+    }
+  
+    const userName = name || email.split('@')[0]; // Fallback to local part of email
+    const user = await this.usersService.createSingleUser(userName, email, password);
+  
     return {
-      message: `Created ${users.length} fake users`,
-      users: users.map((u) => ({ email: u.email, name: u.name })),
+      message: `User ${email} created successfully`,
+      user,
     };
   }
 

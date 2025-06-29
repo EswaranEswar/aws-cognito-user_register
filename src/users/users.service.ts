@@ -20,26 +20,16 @@ export class UsersService {
     private appConfigService: AppConfigService,
   ) {}
 
-  async createFakerUsers(count: number, password: string) {
-    const users = this.userGenerator.generateFakeUsers(count, password);
-
-    const createdUsers = await Promise.all(
-      users.map(async (user) => {
-        try {
-          await this.cognitoService.createUser(user.name, user.email, password);
-          await this.userRepository.createUser(user.name, user.email, password);
-          console.log('User created successfully in database for login');
-          return user;
-        } catch (error) {
-          this.logger.error(
-            `User creation failed for ${user.email}: ${error.message}`,
-          );
-          return null;
-        }
-      }),
-    );
-
-    return createdUsers.filter((user) => user !== null);
+  async createSingleUser(name: string, email: string, password: string) {
+    try {
+      await this.cognitoService.createUser(name, email, password);
+      await this.userRepository.createUser(name, email, password);
+      console.log(`User ${email} created successfully.`);
+      return { email, name };
+    } catch (error) {
+      this.logger.error(`User creation failed for ${email}: ${error.message}`);
+      throw new Error(`User creation failed for ${email}: ${error.message}`);
+    }
   }
 
   async loginUser(email: string, password: string) {

@@ -16,6 +16,7 @@ export class UserRepository {
       name: 'User',
       schema: UserSchema,
     });
+  
     return model.create({ name, email, password });
   }
 

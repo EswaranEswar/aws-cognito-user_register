@@ -3,6 +3,7 @@ version: '3.8'
 services:
   app:
     build: .
+    image: app
     ports:
       - "3006:3006"
     volumes:
