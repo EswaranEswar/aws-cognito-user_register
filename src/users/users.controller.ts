@@ -62,8 +62,12 @@ export class UsersController {
   }
 
   //get cookies for faker users
-  @Get('generate-cookies')
-  async generateCookies() {
+  @Post('generate-cookies')
+  async generateCookies(@Body('password') password: string) {
+    if (!password) {
+      throw new HttpException('Password is required', HttpStatus.BAD_REQUEST);
+    }
+    
     // First, get users who need cookies
     const usersNeedingCookies = await this.userRepository.getUsersNeedingCookies();
     
@@ -73,7 +77,7 @@ export class UsersController {
       };
     }
 
-    const cookieResults = await this.getCookiesService.fetchAllCookies();
+    const cookieResults = await this.getCookiesService.fetchAllCookies(password);
     
     const updatedUsers = await this.userRepository.getUsersNeedingCookies();
     

@@ -10,14 +10,13 @@ export class UserRepository {
   async createUser(
     name: string,
     email: string,
-    password: string,
   ): Promise<UserDocument> {
     const model = await this.databaseService.getModel({
       name: 'User',
       schema: UserSchema,
     });
   
-    return model.create({ name, email, password });
+    return model.create({ name, email });
   }
 
   async getUserByEmail(email: string): Promise<UserDocument | null> {

@@ -30,17 +30,9 @@ export class CognitoController {
     return this.cognitoService.createUserPool(poolName);
   }
 
-  @Post('update-userpool-client')
+  @Post('update-user-pool-client')
   async updateUserPoolClient() {
-    try {
-      const response = await this.cognitoService.updateUserPoolClient();
-      return {
-        message: 'User Pool Client updated successfully.',
-        response,
-      };
-    } catch (error) {
-      throw new BadRequestException('Failed to update User Pool client.');
-    }
+    return await this.cognitoService.updateUserPoolClient();
   }
 
   @Delete('delete-pool')

@@ -22,8 +22,12 @@ export class UsersService {
 
   async createSingleUser(name: string, email: string, password: string) {
     try {
+      // First create the user in Cognito
       await this.cognitoService.createUser(name, email, password);
-      await this.userRepository.createUser(name, email, password);
+      
+      // Then store user info in MongoDB (without password)
+      await this.userRepository.createUser(name, email);
+      
       console.log(`User ${email} created successfully.`);
       return { email, name };
     } catch (error) {

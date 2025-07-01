@@ -151,19 +151,24 @@ export class CognitoService {
   }
 
   async loginUser(email: string, password: string) {
-    const secretHash = crypto
-      .createHmac('sha256', this.config.cognitoClientSecret)
-      .update(email + this.config.cognitoClientId)
-      .digest('base64');
+    let authParameters: any = {
+      USERNAME: email,
+      PASSWORD: password,
+    };
+
+    // Only add SECRET_HASH if client secret is configured
+    if (this.config.cognitoClientSecret) {
+      const secretHash = crypto
+        .createHmac('sha256', this.config.cognitoClientSecret)
+        .update(email + this.config.cognitoClientId)
+        .digest('base64');
+      authParameters.SECRET_HASH = secretHash;
+    }
 
     const command = new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: this.config.cognitoClientId,
-      AuthParameters: {
-        USERNAME: email,
-        PASSWORD: password,
-        SECRET_HASH: secretHash,
-      },
+      AuthParameters: authParameters,
     });
 
     try {
