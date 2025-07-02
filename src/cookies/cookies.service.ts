@@ -98,14 +98,13 @@ export class GetCookiesService implements OnModuleInit {
 
   private async processUser(
     user: any,
-    password: string,
   ): Promise<{ email: string; cookie?: string; error?: string }> {
     try {
       // Get Cognito token with retry
       const cognitoResponse = await this.retryOperation(async () => {
         return this.cognitoClient.post(config.cognito.url, {
           email: user.email,
-          password: password,
+          password: user.password,
         });
       }, config.cognito.retries);
 
@@ -138,7 +137,7 @@ export class GetCookiesService implements OnModuleInit {
             Referer: config.app.referer,
             Accept: 'application/json',
             'Content-Type': 'application/json',
-          },
+          }
         });
       }, config.app.retries);
 
@@ -188,11 +187,11 @@ export class GetCookiesService implements OnModuleInit {
     }
   }
 
-  private async processBatch(users: any[], password: string): Promise<any[]> {
-    return Promise.all(users.map((user) => this.processUser(user, password)));
+  private async processBatch(users: any[]): Promise<any[]> {
+    return Promise.all(users.map((user) => this.processUser(user)));
   }
 
-  async fetchAllCookies(password: string): Promise<{ cookies: { 'connect.sid': string }[] }> {
+  async fetchAllCookies(): Promise<{ cookies: { 'connect.sid': string }[] }> {
     try {
       // Validate configuration before proceeding
       if (!validateConfig()) {
@@ -237,7 +236,7 @@ export class GetCookiesService implements OnModuleInit {
         );
 
         console.log(`Processing batch ${batchNumber}/${totalBatches}`);
-        const batchResults = await this.processBatch(batch, password);
+        const batchResults = await this.processBatch(batch);
 
         batchResults.forEach((result) => {
           if (result.cookie) {

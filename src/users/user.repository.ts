@@ -7,16 +7,13 @@ import { Model } from 'mongoose';
 export class UserRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async createUser(
-    name: string,
-    email: string,
-  ): Promise<UserDocument> {
+  async createUser(user: User): Promise<UserDocument> {
     const model = await this.databaseService.getModel({
       name: 'User',
       schema: UserSchema,
     });
   
-    return model.create({ name, email });
+    return model.create(user);
   }
 
   async getUserByEmail(email: string): Promise<UserDocument | null> {

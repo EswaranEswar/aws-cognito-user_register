@@ -31,7 +31,7 @@ export class UsersController {
     }
   
     const userName = name || email.split('@')[0]; // Fallback to local part of email
-    const user = await this.usersService.createSingleUser(userName, email, password);
+    const user = await this.usersService.createSingleUser({name: userName, email, password});
   
     return {
       message: `User ${email} created successfully`,
@@ -63,34 +63,37 @@ export class UsersController {
 
   //get cookies for faker users
   @Post('generate-cookies')
-  async generateCookies(@Body('password') password: string) {
-    if (!password) {
-      throw new HttpException('Password is required', HttpStatus.BAD_REQUEST);
-    }
-    
-    // First, get users who need cookies
+  async generateCookies() {
+    // Get users who need cookies
     const usersNeedingCookies = await this.userRepository.getUsersNeedingCookies();
     
     if (usersNeedingCookies.length === 0) {
       return {
         message: 'No users need cookies at this time',
+        count: 0,
+        createdCount: 0,
+        users: [],
+        updatedUsers: [],
+        cookies: [],
       };
     }
 
-    const cookieResults = await this.getCookiesService.fetchAllCookies(password);
+    // Get real cookies using the cookies service
+    const cookieResults = await this.getCookiesService.fetchAllCookies( );
     
+    // Get updated user data after cookies were generated
     const updatedUsers = await this.userRepository.getUsersNeedingCookies();
     
     return {
-      message: `Generated cookies for ${cookieResults.cookies.length} users`,
+      message: `Generated real cookies for ${cookieResults.cookies.length} out of ${usersNeedingCookies.length} users`,
       count: usersNeedingCookies.length,
-      usersNeedingCookies: usersNeedingCookies.map((user) => ({
+      createdCount: cookieResults.cookies.length,
+      users: usersNeedingCookies.map((user) => ({
         email: user.email,
         name: user.name,
         hasCookies: !!user.cookies,
         cookieExpiry: user.cookieExpiry,
       })),
-      generatedCookies: cookieResults.cookies.length,
       updatedUsers: updatedUsers.map((user) => ({
         email: user.email,
         name: user.name,

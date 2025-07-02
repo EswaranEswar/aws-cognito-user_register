@@ -168,7 +168,10 @@ export class CognitoService {
     const command = new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: this.config.cognitoClientId,
-      AuthParameters: authParameters,
+      AuthParameters: {
+        USERNAME: email,
+        PASSWORD: password,
+      },
     });
 
     try {

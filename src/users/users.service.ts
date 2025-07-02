@@ -3,11 +3,8 @@ import { CognitoService } from '../cognito/cognito.service';
 import { UserGeneratorService } from '../common/user-generator.service';
 import { UserRepository } from './user.repository';
 import { AppConfigService } from '../config/config.service';
+import { User, UserDocument } from './schemas/user.schema';
 
-export type User = {
-  name: string;
-  email: string;
-};
 
 @Injectable()
 export class UsersService {
@@ -20,19 +17,18 @@ export class UsersService {
     private appConfigService: AppConfigService,
   ) {}
 
-  async createSingleUser(name: string, email: string, password: string) {
+  async createSingleUser(user: User): Promise<User>{
     try {
       // First create the user in Cognito
-      await this.cognitoService.createUser(name, email, password);
+      await this.cognitoService.createUser(user.name, user.email, user.password);
       
       // Then store user info in MongoDB (without password)
-      await this.userRepository.createUser(name, email);
+      await this.userRepository.createUser(user);
       
-      console.log(`User ${email} created successfully.`);
-      return { email, name };
+      console.log(`User ${user.email} created successfully.`);
+      return user;
     } catch (error) {
-      this.logger.error(`User creation failed for ${email}: ${error.message}`);
-      throw new Error(`User creation failed for ${email}: ${error.message}`);
+      throw new Error(`User creation failed for ${user.email}: ${error.message}`);
     }
   }
 
