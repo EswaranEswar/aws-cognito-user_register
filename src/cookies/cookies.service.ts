@@ -267,4 +267,31 @@ export class GetCookiesService implements OnModuleInit {
       );
     }
   }
+
+  async generateCookiesForUser(email: string, password: string): Promise<{ cookie?: string; error?: string }> {
+    try {
+      // Validate configuration before proceeding
+      if (!validateConfig()) {
+        console.error('❌ Cannot generate cookies: Missing required environment variables');
+        return { error: 'Missing required environment variables' };
+      }
+
+      console.log(`Generating cookies for user: ${email}`);
+
+      // Create a user object for processing
+      const user = { email, password };
+      const result = await this.processUser(user);
+
+      if (result.cookie) {
+        console.log(`✅ Successfully generated cookies for ${email}`);
+        return { cookie: result.cookie };
+      } else {
+        console.error(`❌ Failed to generate cookies for ${email}: ${result.error}`);
+        return { error: result.error };
+      }
+    } catch (err) {
+      console.error(`Fatal error generating cookies for ${email}:`, err);
+      return { error: err.response?.data?.message || err.message || 'Unknown error' };
+    }
+  }
 }
