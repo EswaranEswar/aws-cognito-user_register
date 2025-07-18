@@ -108,4 +108,15 @@ export class UsersController {
   async getCookies(@Body('input') input: string) {
     return await this.usersService.getCookies(input);
   }
+
+  @Post('user-login')
+  async singleUserLogin(@Body() body: { email: string; password: string }) {
+    const { email, password } = body;
+    
+    if (!email || !password) {
+      throw new HttpException('Email and password are required', HttpStatus.BAD_REQUEST);
+    }
+
+    return await this.usersService.singleUserLogin(email, password);
+  }
 }
