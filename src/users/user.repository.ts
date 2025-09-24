@@ -27,14 +27,15 @@ export class UserRepository {
   async updateUserCookies(
     email: string,
     cookies: string,
-    expiryHours: number = 24,
+    expiryHours: number = 48,
   ): Promise<UserDocument | null> {
     const model = await this.databaseService.getModel({
       name: 'User',
       schema: UserSchema,
     });
+    const safeExpiryHours = Number.isFinite(expiryHours) && expiryHours > 0 ? expiryHours : 48;
     const cookieExpiry = new Date();
-    cookieExpiry.setHours(cookieExpiry.getHours() + expiryHours);
+    cookieExpiry.setHours(cookieExpiry.getHours() + safeExpiryHours);
 
     await model.updateOne(
       { email },

@@ -38,6 +38,43 @@ export class AppConfigService {
   }
 
   get cookieExpiryHours(): number {
-    return this.configService.get<number>('COOKIE_EXPIRY_HOURS') || 24;
+    const raw = this.configService.get<string>('COOKIE_EXPIRY_HOURS');
+    const parsed = raw !== undefined ? Number(raw) : undefined;
+    return Number.isFinite(parsed) && (parsed as number) > 0 ? (parsed as number) : 48;
+  }
+
+  // --- Application-specific HTTP config ---
+  get cognitoUrl(): string {
+    return this.configService.get<string>('COGNITO_URL');
+  }
+
+  get appLoginUrl(): string {
+    const raw = this.configService.get<string>('APP_LOGIN_URL');
+    return raw?.trim();
+  }
+
+  get appReferer(): string {
+    const raw = this.configService.get<string>('APP_REFERRER');
+    return raw?.replace(/['"]/g, '').trim();
+  }
+
+  get cognitoTimeoutMs(): number {
+    return this.configService.get<number>('COGNITO_TIMEOUT_MS') ?? 5000;
+  }
+
+  get cognitoRetries(): number {
+    return this.configService.get<number>('COGNITO_RETRIES') ?? 2;
+  }
+
+  get appTimeoutMs(): number {
+    return this.configService.get<number>('APP_TIMEOUT_MS') ?? 10000;
+  }
+
+  get appMaxConcurrent(): number {
+    return this.configService.get<number>('APP_MAX_CONCURRENT') ?? 10;
+  }
+
+  get appRetries(): number {
+    return this.configService.get<number>('APP_RETRIES') ?? 2;
   }
 }

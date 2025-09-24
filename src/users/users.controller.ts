@@ -91,13 +91,13 @@ export class UsersController {
       users: usersNeedingCookies.map((user) => ({
         email: user.email,
         name: user.name,
-        hasCookies: !!user.cookies,
+        Cookies: !!user.cookies,
         cookieExpiry: user.cookieExpiry,
       })),
       updatedUsers: updatedUsers.map((user) => ({
         email: user.email,
         name: user.name,
-        hasCookies: !!user.cookies,
+        Cookies: !!user.cookies,
         cookieExpiry: user.cookieExpiry,
       })),
       cookies: cookieResults.cookies,
