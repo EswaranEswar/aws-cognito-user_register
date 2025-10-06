@@ -55,4 +55,27 @@ export class CognitoController {
       );
     }
   }
-}
+
+  @Post('create-iam-users')
+  async createUser(@Body() body: { prefix: string; count: number }) {
+    const { prefix, count } = body;
+
+    if (!prefix || !count) {
+      throw new HttpException(
+        'Prefix and count are required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    await this.cognitoService.createUsers(prefix, count);
+    }
+
+    @Delete('delete-iam-user')
+    async deleteUser(@Body() body: { username: string }) {
+      const { username } = body;
+  
+      if (!username) {
+        throw new HttpException('Username is required', HttpStatus.BAD_REQUEST);
+      }
+      return await this.cognitoService.deleteIAMUser(username);
+    }
+  }

@@ -12,14 +12,33 @@ import {
   DeleteUserPoolCommand,
   AdminSetUserPasswordCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
+import { 
+  IAMClient, 
+  CreateUserCommand, 
+  AttachUserPolicyCommand, 
+  CreateAccessKeyCommand ,
+  DetachUserPolicyCommand,
+  ListAttachedUserPoliciesCommand,
+  ListAccessKeysCommand,
+  DeleteAccessKeyCommand,
+  DeleteLoginProfileCommand,
+  ListGroupsForUserCommand,
+  RemoveUserFromGroupCommand,
+  ListUserPoliciesCommand,
+  DeleteUserPolicyCommand,
+  DeleteUserCommand,
+} from "@aws-sdk/client-iam";
 import { AppConfigService } from '../config/config.service';
 import * as crypto from 'crypto';
 const pLimit = require('p-limit');
 
 @Injectable()
 export class CognitoService {
+  private readonly logger = new Logger(CognitoService.name);
   private client: CognitoIdentityProviderClient;
   private limit = pLimit(25); // Increased from 10 to 25 for better concurrency
+  private readonly iamClient = new IAMClient({ region: this.config.cognitoRegion });
+
 
   constructor(private config: AppConfigService) {
     this.client = new CognitoIdentityProviderClient({
@@ -112,6 +131,7 @@ export class CognitoService {
     }
   }
 
+  //Register the new users
   async createUser(
     name: string,
     email: string,
@@ -150,6 +170,61 @@ export class CognitoService {
     });
   }
 
+  // Creating a multiple Iam Users
+async createUsers(prefix: string, count: number) {
+  const POWER_USER_POLICY_ARN = 'arn:aws:iam::aws:policy/PowerUserAccess';
+  const createdUsers: Array<{ username: string; accessKeyId: string; secretAccessKey: string }> = [];
+  let createdCount = 0;
+  let index = 1;
+
+  while (createdCount < count) {
+    const username = `${prefix}${index}`;
+    index++;
+
+    try {
+      // Create IAM user
+      await this.iamClient.send(new CreateUserCommand({ UserName: username }));
+      console.log(`Created user: ${username}`);
+
+      // Attach PowerUserAccess policy
+      await this.iamClient.send(
+        new AttachUserPolicyCommand({
+          UserName: username,
+          PolicyArn: POWER_USER_POLICY_ARN,
+        }),
+      );
+      console.log(`Attached PowerUserAccess policy to: ${username}`);
+
+      // Create access key for the user
+      const accessKeyResponse = await this.iamClient.send(
+        new CreateAccessKeyCommand({ UserName: username }),
+      );
+
+      const { AccessKey } = accessKeyResponse;
+      if (AccessKey) {
+        console.log(`Access Key created for user ${username}: ID=${AccessKey.AccessKeyId}`);
+        createdUsers.push({
+          username,
+          accessKeyId: AccessKey.AccessKeyId!,
+          secretAccessKey: AccessKey.SecretAccessKey!,
+        });
+      }
+
+      createdCount++;
+    } catch (error) {
+      if (error.name === 'EntityAlreadyExistsException') {
+        console.warn(`User ${username} already exists, skipping...`);
+      } else {
+        console.error(`Failed creating user ${username}:`, error);
+      }
+    }
+  }
+
+  console.log('All created users with access keys:', createdUsers);
+  return createdUsers;
+}
+
+  //Login the cognito useres
   async loginUser(email: string, password: string) {
     let authParameters: any = {
       USERNAME: email,
@@ -260,4 +335,41 @@ export class CognitoService {
       throw error;
     }
   }
+
+  async deleteIAMUser(username: string) {
+  // Detach policies
+  const attachedPolicies = await this.iamClient.send(new ListAttachedUserPoliciesCommand({ UserName: username }));
+  for (const policy of attachedPolicies.AttachedPolicies ?? []) {
+    await this.iamClient.send(new DetachUserPolicyCommand({ UserName: username, PolicyArn: policy.PolicyArn! }));
+  }
+
+  // Delete access keys
+  const accessKeys = await this.iamClient.send(new ListAccessKeysCommand({ UserName: username }));
+  for (const key of accessKeys.AccessKeyMetadata ?? []) {
+    await this.iamClient.send(new DeleteAccessKeyCommand({ UserName: username, AccessKeyId: key.AccessKeyId! }));
+  }
+
+  // Delete login profile
+  try {
+    await this.iamClient.send(new DeleteLoginProfileCommand({ UserName: username }));
+  } catch (err) {
+    // ignore if no login profile
+  }
+
+  // Remove from groups
+  const groups = await this.iamClient.send(new ListGroupsForUserCommand({ UserName: username }));
+  for (const group of groups.Groups ?? []) {
+    await this.iamClient.send(new RemoveUserFromGroupCommand({ GroupName: group.GroupName!, UserName: username }));
+  }
+
+  // Remove inline policies
+  const policies = await this.iamClient.send(new ListUserPoliciesCommand({ UserName: username }));
+  for (const policyName of policies.PolicyNames ?? []) {
+    await this.iamClient.send(new DeleteUserPolicyCommand({ UserName: username, PolicyName: policyName }));
+  }
+
+  // Finally delete the user
+  await this.iamClient.send(new DeleteUserCommand({ UserName: username }));
+  console.log(`Deleted user: ${username}`);
+}
 }
