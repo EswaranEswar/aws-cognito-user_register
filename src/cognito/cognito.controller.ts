@@ -57,17 +57,20 @@ export class CognitoController {
   }
 
   @Post('create-iam-users')
-  async createUser(@Body() body: { prefix: string; count: number }) {
-    const { prefix, count } = body;
+  async createUser(@Body() body: { prefix: string }) {
+    const { prefix } = body;
 
-    if (!prefix || !count) {
+    if (!prefix) {
       throw new HttpException(
-        'Prefix and count are required',
+        'Prefix is required',
         HttpStatus.BAD_REQUEST,
       );
     }
-    await this.cognitoService.createUsers(prefix, count);
-    }
+    await this.cognitoService.createUsers(prefix);
+    return {
+      message: `Users created successfully`,
+    };
+  }
 
     @Delete('delete-iam-user')
     async deleteUser(@Body() body: { username: string }) {

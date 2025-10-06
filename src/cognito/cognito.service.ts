@@ -171,52 +171,43 @@ export class CognitoService {
   }
 
   // Creating a multiple Iam Users
-async createUsers(prefix: string, count: number) {
+async createUsers(username: string) {
   const POWER_USER_POLICY_ARN = 'arn:aws:iam::aws:policy/PowerUserAccess';
   const createdUsers: Array<{ username: string; accessKeyId: string; secretAccessKey: string }> = [];
-  let createdCount = 0;
-  let index = 1;
 
-  while (createdCount < count) {
-    const username = `${prefix}${index}`;
-    index++;
+  try {
+    // Create IAM user
+    await this.iamClient.send(new CreateUserCommand({ UserName: username }));
+    console.log(`Created user: ${username}`);
 
-    try {
-      // Create IAM user
-      await this.iamClient.send(new CreateUserCommand({ UserName: username }));
-      console.log(`Created user: ${username}`);
+    // Attach PowerUserAccess policy
+    await this.iamClient.send(
+      new AttachUserPolicyCommand({
+        UserName: username,
+        PolicyArn: POWER_USER_POLICY_ARN,
+      }),
+    );
+    console.log(`Attached PowerUserAccess policy to: ${username}`);
 
-      // Attach PowerUserAccess policy
-      await this.iamClient.send(
-        new AttachUserPolicyCommand({
-          UserName: username,
-          PolicyArn: POWER_USER_POLICY_ARN,
-        }),
-      );
-      console.log(`Attached PowerUserAccess policy to: ${username}`);
+    // Create access key for the user
+    const accessKeyResponse = await this.iamClient.send(
+      new CreateAccessKeyCommand({ UserName: username }),
+    );
 
-      // Create access key for the user
-      const accessKeyResponse = await this.iamClient.send(
-        new CreateAccessKeyCommand({ UserName: username }),
-      );
-
-      const { AccessKey } = accessKeyResponse;
-      if (AccessKey) {
-        console.log(`Access Key created for user ${username}: ID=${AccessKey.AccessKeyId}`);
-        createdUsers.push({
-          username,
-          accessKeyId: AccessKey.AccessKeyId!,
-          secretAccessKey: AccessKey.SecretAccessKey!,
-        });
-      }
-
-      createdCount++;
-    } catch (error) {
-      if (error.name === 'EntityAlreadyExistsException') {
-        console.warn(`User ${username} already exists, skipping...`);
-      } else {
-        console.error(`Failed creating user ${username}:`, error);
-      }
+    const { AccessKey } = accessKeyResponse;
+    if (AccessKey) {
+      console.log(`Access Key created for user ${username}: ID=${AccessKey.AccessKeyId}`);
+      createdUsers.push({
+        username,
+        accessKeyId: AccessKey.AccessKeyId!,
+        secretAccessKey: AccessKey.SecretAccessKey!,
+      });
+    }
+  } catch (error) {
+    if ((error as any).name === 'EntityAlreadyExistsException') {
+      console.warn(`User ${username} already exists, skipping...`);
+    } else {
+      console.error(`Failed creating user ${username}:`, error);
     }
   }
 
