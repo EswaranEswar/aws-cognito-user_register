@@ -59,16 +59,16 @@ export class CognitoController {
   @Post('create-iam-users')
   async createUser(@Body() body: { prefix: string }) {
     const { prefix } = body;
-
+  
     if (!prefix) {
-      throw new HttpException(
-        'Prefix is required',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Prefix is required', HttpStatus.BAD_REQUEST);
     }
-    await this.cognitoService.createUsers(prefix);
+  
+    const createdUsers = await this.cognitoService.createUsers(prefix);
+  
     return {
       message: `Users created successfully`,
+      users: createdUsers, // ← return credentials here
     };
   }
 

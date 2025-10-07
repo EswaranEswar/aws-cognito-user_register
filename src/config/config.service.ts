@@ -77,4 +77,17 @@ export class AppConfigService {
   get appRetries(): number {
     return this.configService.get<number>('APP_RETRIES') ?? 2;
   }
+
+  // Azure configuration
+  get azureTenantId(): string {
+    return this.configService.get<string>('AZURE_TENANT_ID');
+  }
+
+  get azureClientId(): string {
+    return this.configService.get<string>('AZURE_CLIENT_ID');
+  }
+
+  get azureClientSecret(): string {
+    return this.configService.get<string>('AZURE_CLIENT_SECRET');
+  }
 }

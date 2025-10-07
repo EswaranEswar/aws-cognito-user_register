@@ -171,49 +171,48 @@ export class CognitoService {
   }
 
   // Creating a multiple Iam Users
-async createUsers(username: string) {
-  const POWER_USER_POLICY_ARN = 'arn:aws:iam::aws:policy/PowerUserAccess';
-  const createdUsers: Array<{ username: string; accessKeyId: string; secretAccessKey: string }> = [];
-
-  try {
-    // Create IAM user
-    await this.iamClient.send(new CreateUserCommand({ UserName: username }));
-    console.log(`Created user: ${username}`);
-
-    // Attach PowerUserAccess policy
-    await this.iamClient.send(
-      new AttachUserPolicyCommand({
-        UserName: username,
-        PolicyArn: POWER_USER_POLICY_ARN,
-      }),
-    );
-    console.log(`Attached PowerUserAccess policy to: ${username}`);
-
-    // Create access key for the user
-    const accessKeyResponse = await this.iamClient.send(
-      new CreateAccessKeyCommand({ UserName: username }),
-    );
-
-    const { AccessKey } = accessKeyResponse;
-    if (AccessKey) {
+  async createUsers(username: string) {
+    const POWER_USER_POLICY_ARN = 'arn:aws:iam::aws:policy/PowerUserAccess';
+  
+    try {
+      // 1️⃣ Create IAM user
+      await this.iamClient.send(new CreateUserCommand({ UserName: username }));
+      console.log(`Created user: ${username}`);
+  
+      // 2️⃣ Attach PowerUserAccess policy
+      await this.iamClient.send(
+        new AttachUserPolicyCommand({
+          UserName: username,
+          PolicyArn: POWER_USER_POLICY_ARN,
+        }),
+      );
+      console.log(`Attached PowerUserAccess policy to: ${username}`);
+  
+      // 3️⃣ Create access key
+      const accessKeyResponse = await this.iamClient.send(
+        new CreateAccessKeyCommand({ UserName: username }),
+      );
+  
+      const { AccessKey } = accessKeyResponse;
+      if (!AccessKey) throw new Error('Failed to create access key');
+  
       console.log(`Access Key created for user ${username}: ID=${AccessKey.AccessKeyId}`);
-      createdUsers.push({
+  
+      return {
         username,
         accessKeyId: AccessKey.AccessKeyId!,
         secretAccessKey: AccessKey.SecretAccessKey!,
-      });
-    }
-  } catch (error) {
-    if ((error as any).name === 'EntityAlreadyExistsException') {
-      console.warn(`User ${username} already exists, skipping...`);
-    } else {
-      console.error(`Failed creating user ${username}:`, error);
+      };
+    } catch (error) {
+      if ((error as any).name === 'EntityAlreadyExistsException') {
+        console.warn(`User ${username} already exists, skipping...`);
+      } else {
+        console.error(`Failed creating user ${username}:`, error);
+        throw error;
+      }
     }
   }
-
-  console.log('All created users with access keys:', createdUsers);
-  return createdUsers;
-}
+  
 
   //Login the cognito useres
   async loginUser(email: string, password: string) {
