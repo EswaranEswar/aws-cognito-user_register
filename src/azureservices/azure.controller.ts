@@ -1,49 +1,17 @@
-import {
-  Controller,
-  HttpException,
-  HttpStatus,
-  Get,
-  Post,
-  Body,
-  Delete,
-} from '@nestjs/common';
-import { AzureService } from './azure.service';
+import { Controller, Post, Body } from '@nestjs/common';
+import { AzureIamService } from './azure.service';
+
+export class CreateUserDto {
+  prefix: string;
+}
 
 @Controller('azure')
 export class AzureController {
-  constructor(private readonly azureService: AzureService) {}
+  constructor(private readonly azureIamService: AzureIamService) {}
 
-  @Get('list-service-principals')
-  async listServicePrincipals() {
-    return this.azureService.listServicePrincipals();
-  }
-
-  @Post('create-iam-users')
-  async createServicePrincipalUser(@Body() body: { prefix: string }) {
+  @Post('create-iam-user')
+  async createUser(@Body() body: CreateUserDto) {
     const { prefix } = body;
-
-    if (!prefix) {
-      throw new HttpException(
-        'Prefix is required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    
-    const result = await this.azureService.createServicePrincipalUser(prefix);
-    return {
-      message: `Service Principal users created successfully`,
-      users: result,
-    };
-  }
-
-  @Delete('delete-iam-user')
-  async deleteServicePrincipalUser(@Body() body: { username: string }) {
-    const { username } = body;
-
-    if (!username) {
-      throw new HttpException('Username is required', HttpStatus.BAD_REQUEST);
-    }
-    
-    return await this.azureService.deleteServicePrincipalUser(username);
+    return await this.azureIamService.createServicePrincipalWithRole(prefix);
   }
 }

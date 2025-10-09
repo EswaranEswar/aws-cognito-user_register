@@ -64,13 +64,15 @@ export class CognitoController {
       throw new HttpException('Prefix is required', HttpStatus.BAD_REQUEST);
     }
   
-    const createdUsers = await this.cognitoService.createUsers(prefix);
+    const {accessKeyId,secretAccessKey} = await this.cognitoService.createUsers(prefix);
   
     return {
-      message: `Users created successfully`,
-      users: createdUsers, // ← return credentials here
+      message: `User created successfully`,
+      accessKeyId,
+      secretAccessKey,
     };
   }
+  
 
     @Delete('delete-iam-user')
     async deleteUser(@Body() body: { username: string }) {

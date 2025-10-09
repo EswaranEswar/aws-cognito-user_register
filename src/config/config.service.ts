@@ -78,6 +78,10 @@ export class AppConfigService {
     return this.configService.get<number>('APP_RETRIES') ?? 2;
   }
 
+  get awsSsoProfile(): string {
+  return this.configService.get<string>('AWS_SSO_PROFILE');
+}
+
   // Azure configuration
   get azureTenantId(): string {
     return this.configService.get<string>('AZURE_TENANT_ID');

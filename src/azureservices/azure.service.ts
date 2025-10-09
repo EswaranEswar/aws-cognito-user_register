@@ -1,201 +1,106 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClientSecretCredential } from '@azure/identity';
+import { AuthorizationManagementClient } from '@azure/arm-authorization';
 import { Client } from '@microsoft/microsoft-graph-client';
-import { AppConfigService } from '../config/config.service';
 import 'isomorphic-fetch';
 
 @Injectable()
-export class AzureService {
-  private readonly logger = new Logger(AzureService.name);
-  private graphClient: any;
+export class AzureIamService {
+  private readonly logger = new Logger(AzureIamService.name);
+  private readonly credential: ClientSecretCredential;
+  private readonly graphClient: Client;
+  private readonly subscriptionId: string;
+  private readonly authClient: AuthorizationManagementClient;
 
-  constructor(private config: AppConfigService) {
-    this.initializeAzureClient();
-  }
+  constructor() {
+    this.subscriptionId = process.env.AZURE_SUBSCRIPTION_ID!;
+    this.credential = new ClientSecretCredential(
+      process.env.AZURE_TENANT_ID!,
+      process.env.AZURE_CLIENT_ID!,
+      process.env.AZURE_CLIENT_SECRET!,
+    );
 
-  private initializeAzureClient() {
-    const tenantId = this.config.azureTenantId;
-    const clientId = this.config.azureClientId;
-    const clientSecret = this.config.azureClientSecret;
-
-    if (!tenantId || !clientId || !clientSecret) {
-      this.logger.warn('Azure credentials not configured. Azure service will not be available.');
-      this.logger.warn('Required environment variables: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET');
-      return;
-    }
-
-    try {
-      const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-
-      this.graphClient = Client.initWithMiddleware({
-        authProvider: {
-          getAccessToken: async () => {
-            const token = await credential.getToken('https://graph.microsoft.com/.default');
-            return token?.token!;
-          },
+    this.graphClient = Client.initWithMiddleware({
+      authProvider: {
+        getAccessToken: async () => {
+          const token = await this.credential.getToken(
+            'https://graph.microsoft.com/.default',
+          );
+          return token!.token;
         },
-      });
+      },
+    });
 
-      this.logger.log('Azure Graph client initialized successfully');
-    } catch (error) {
-      this.logger.error('Failed to initialize Azure Graph client:', error.message);
-    }
+    this.authClient = new AuthorizationManagementClient(
+      this.credential,
+      this.subscriptionId,
+    );
   }
 
-  /** Create Service Principal (Azure IAM equivalent) */
-  async createServicePrincipalUser(username: string) {
-    if (!this.graphClient) {
-      throw new Error('Azure Graph client not initialized. Please configure Azure credentials.');
+  /**
+   * Creates a new Service Principal (IAM User) and assigns a role.
+   */
+  async createServicePrincipalWithRole(
+    displayName: string,
+    roleName = 'Contributor',
+  ) {
+    if (!displayName || displayName.trim() === '') {
+      throw new Error(
+        'Display name is required to create the Azure application.',
+      );
     }
-
-    const createdUsers: Array<{ 
-      username: string; 
-      clientId: string; 
-      clientSecret: string; 
-      tenantId: string;
-      objectId: string;
-    }> = [];
 
     try {
       const app = await this.graphClient.api('/applications').post({
-        displayName: `${username}-app`,
+        displayName: displayName.trim(),
         signInAudience: 'AzureADMyOrg',
       });
-      
-      this.logger.log(`Created App registration: ${username}-app (${app.id})`);
 
+      this.logger.log(`Created App Registration: ${app.appId}`);
+      //Create Service Principal
       const sp = await this.graphClient.api('/servicePrincipals').post({
         appId: app.appId,
-        displayName: `${username}-sp`,
-      });
-      
-      this.logger.log(`Created Service Principal: ${username}-sp (${sp.id})`);
-
-      const secret = await this.graphClient
-        .api(`/applications/${app.id}/addPassword`)
-        .post({
-          passwordCredential: {
-            displayName: `${username}-secret`,
-            endDateTime: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-        });
-
-      this.logger.log(`Created client secret for ${username}`);
-
-      await this.assignContributorRole(sp.id);
-
-      createdUsers.push({
-        username,
-        clientId: app.appId,
-        clientSecret: secret.secretText,
-        tenantId: this.config.azureTenantId!,
-        objectId: sp.id,
       });
 
-      this.logger.log(`Created Service Principal user: ${username}`);
-      return createdUsers;
+      this.logger.log(`Created Service Principal: ${sp.id}`);
 
-    } catch (error) {
-      if (error.message?.includes('already exists')) {
-        this.logger.warn(`Service Principal ${username} already exists, skipping...`);
-      } else {
-        this.logger.error(`Failed creating Service Principal ${username}:`, error);
-        throw error;
-      }
-    }
-
-    return createdUsers;
-  }
-
-  /** Assign Contributor role to Service Principal */
-  private async assignContributorRole(servicePrincipalId: string) {
-    if (!this.graphClient) {
-      this.logger.warn('Azure Graph client not initialized, skipping role assignment');
-      return;
-    }
-
-    try {
-      const roles = await this.graphClient.api('/roleManagement/directory/roleDefinitions').get();
-      const contributorRole = roles.value.find((role: any) => 
-        role.displayName === 'Contributor' || role.displayName === 'User Administrator'
+      //Get Role Definition ID
+      const rolesIterator = this.authClient.roleDefinitions.list(
+        `/subscriptions/${this.subscriptionId}`,
       );
 
-      if (contributorRole) {
-        await this.graphClient
-          .api('/roleManagement/directory/roleAssignments')
-          .post({
-            principalId: servicePrincipalId,
-            roleDefinitionId: contributorRole.id,
-            directoryScopeId: '/',
-          });
-
-        this.logger.log(`Assigned ${contributorRole.displayName} role to Service Principal`);
-      } else {
-        this.logger.warn('Contributor role not found, skipping role assignment');
-      }
-    } catch (error) {
-      this.logger.error('Error assigning role:', error);
-    }
-  }
-
-  /** Delete Service Principal */
-  async deleteServicePrincipalUser(username: string) {
-    if (!this.graphClient) {
-      throw new Error('Azure Graph client not initialized. Please configure Azure credentials.');
-    }
-
-    try {
-      const servicePrincipals = await this.graphClient
-        .api('/servicePrincipals')
-        .filter(`displayName eq '${username}-sp'`)
-        .get();
-
-      if (servicePrincipals.value && servicePrincipals.value.length > 0) {
-        const sp = servicePrincipals.value[0];
-        
-        const apps = await this.graphClient
-          .api('/applications')
-          .filter(`appId eq '${sp.appId}'`)
-          .get();
-
-        if (apps.value && apps.value.length > 0) {
-          const app = apps.value[0];
-          await this.graphClient.api(`/applications/${app.id}`).delete();
-          
-          this.logger.log(`Deleted Service Principal user: ${username}`);
-          return { message: `Service Principal user ${username} deleted successfully` };
+      let roleDef: any = null;
+      for await (const role of rolesIterator) {
+        if (role.roleName === roleName) {
+          roleDef = role;
+          break;
         }
       }
 
-      this.logger.warn(`Service Principal ${username} not found`);
-      return { message: `Service Principal ${username} not found` };
+      if (!roleDef) {
+        throw new Error(`Role ${roleName} not found in subscription`);
+      }
+      //Assign Role to Service Principal
+      const assignmentName = crypto.randomUUID();
+      const scope = `/subscriptions/${this.subscriptionId}`;
 
-    } catch (error) {
-      this.logger.error(`Error deleting Service Principal ${username}:`, error);
-      throw error;
-    }
-  }
+      await this.authClient.roleAssignments.create(scope, assignmentName, {
+        principalId: sp.id,
+        roleDefinitionId: roleDef.id!,
+        principalType: 'ServicePrincipal',
+      });
 
-  /** List all Service Principals */
-  async listServicePrincipals() {
-    if (!this.graphClient) {
-      throw new Error('Azure Graph client not initialized. Please configure Azure credentials.');
-    }
+      this.logger.log(`Assigned ${roleName} role to ${displayName}`);
 
-    try {
-      const servicePrincipals = await this.graphClient.api('/servicePrincipals').get();
-      
-      const formattedSPs = servicePrincipals.value.map((sp: any) => ({
-        displayName: sp.displayName,
-        appId: sp.appId,
+      //Return credentials (App ID and Object ID)
+      return {
+        message: 'Service Principal created and role assigned successfully',
+        appId: app.appId,
         objectId: sp.id,
-        createdDateTime: sp.createdDateTime,
-      }));
-
-      this.logger.log(`Found ${formattedSPs.length} Service Principals`);
-      return formattedSPs;
+        roleAssigned: roleName,
+      };
     } catch (error) {
-      this.logger.error('Error listing Service Principals:', error);
+      this.logger.error('Failed creating Service Principal:', error);
       throw error;
     }
   }

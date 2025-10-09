@@ -28,6 +28,7 @@ import {
   DeleteUserPolicyCommand,
   DeleteUserCommand,
 } from "@aws-sdk/client-iam";
+import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
 import { AppConfigService } from '../config/config.service';
 import * as crypto from 'crypto';
 const pLimit = require('p-limit');
@@ -37,16 +38,23 @@ export class CognitoService {
   private readonly logger = new Logger(CognitoService.name);
   private client: CognitoIdentityProviderClient;
   private limit = pLimit(25); // Increased from 10 to 25 for better concurrency
-  private readonly iamClient = new IAMClient({ region: this.config.cognitoRegion });
+  // private readonly iamClient = new IAMClient();
+  private iamClient: IAMClient;
 
 
-  constructor(private config: AppConfigService) {
+  constructor(private readonly config: AppConfigService) {
+    const credentialsProvider = fromNodeProviderChain({
+      profile: this.config.awsSsoProfile || process.env.AWS_PROFILE || 'default',
+    });
+
     this.client = new CognitoIdentityProviderClient({
       region: this.config.cognitoRegion,
-      credentials: {
-        accessKeyId: this.config.awsAccessKeyId,
-        secretAccessKey: this.config.awsSecretAccessKey,
-      },
+      credentials: credentialsProvider,
+    });
+
+    this.iamClient = new IAMClient({
+      region: this.config.cognitoRegion,
+      credentials: credentialsProvider,
     });
   }
 
@@ -199,9 +207,9 @@ export class CognitoService {
       console.log(`Access Key created for user ${username}: ID=${AccessKey.AccessKeyId}`);
   
       return {
-        username,
         accessKeyId: AccessKey.AccessKeyId!,
         secretAccessKey: AccessKey.SecretAccessKey!,
+        userExists: false
       };
     } catch (error) {
       if ((error as any).name === 'EntityAlreadyExistsException') {

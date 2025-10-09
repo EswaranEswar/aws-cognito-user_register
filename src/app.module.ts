@@ -15,7 +15,7 @@ import { AzureModule } from './azureservices/azure.module';
     AppConfigModule,
     DatabaseModule,
     SocketModule,
-    AzureModule
+    // AzureModule
   ],
   providers: [AppService],
   controllers: [AppController],
