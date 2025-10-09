@@ -31,32 +31,54 @@ import {
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
 import { AppConfigService } from '../config/config.service';
 import * as crypto from 'crypto';
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 const pLimit = require('p-limit');
+
+
 
 @Injectable()
 export class CognitoService {
   private readonly logger = new Logger(CognitoService.name);
   private client: CognitoIdentityProviderClient;
   private limit = pLimit(25); // Increased from 10 to 25 for better concurrency
-  // private readonly iamClient = new IAMClient();
   private iamClient: IAMClient;
 
+    constructor(private readonly config: AppConfigService) {
+    const region = this.config.awsRegion;
+    const profile = this.config.awsSsoProfile
 
-  constructor(private readonly config: AppConfigService) {
     const credentialsProvider = fromNodeProviderChain({
-      profile: this.config.awsSsoProfile || process.env.AWS_PROFILE || 'default',
+      profile,
     });
 
+    // initialize clients
     this.client = new CognitoIdentityProviderClient({
-      region: this.config.cognitoRegion,
+      region,
       credentials: credentialsProvider,
     });
 
     this.iamClient = new IAMClient({
-      region: this.config.cognitoRegion,
+      region,
       credentials: credentialsProvider,
     });
+
+    this.verifySso(profile, region);
   }
+
+  private async verifySso(profile: string, region: string): Promise<void> {
+    try {
+      const sts = new STSClient({
+        region,
+        credentials: fromNodeProviderChain({ profile }),
+      });
+      const identity = await sts.send(new GetCallerIdentityCommand({}));
+      console.log(`Using AWS SSO profile "${profile}" as ${identity.Arn}`);
+    } catch (err) {
+      console.error(`AWS SSO credentials not found for profile "${profile}"`);
+      console.error(err);
+    }
+  }
+
 
   async getAllUsers(): Promise<any[]> {
     try {
