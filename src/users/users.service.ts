@@ -39,7 +39,6 @@ export class UsersService {
       const updatedUser = await this.userRepository.updateUserCookies(
         email,
         result.sessionToken,
-        this.appConfigService.cookieExpiryHours,
       );
 
       return {

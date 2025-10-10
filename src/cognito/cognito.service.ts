@@ -28,10 +28,10 @@ import {
   DeleteUserPolicyCommand,
   DeleteUserCommand,
 } from "@aws-sdk/client-iam";
-import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
+import { fromNodeProviderChain, fromSSO } from '@aws-sdk/credential-providers'
 import { AppConfigService } from '../config/config.service';
 import * as crypto from 'crypto';
-import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
+import { AssumeRoleCommand, GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 const pLimit = require('p-limit');
 
 
@@ -43,39 +43,38 @@ export class CognitoService {
   private limit = pLimit(25); // Increased from 10 to 25 for better concurrency
   private iamClient: IAMClient;
 
-    constructor(private readonly config: AppConfigService) {
+  constructor(private readonly config: AppConfigService) {
     const region = this.config.awsRegion;
-    const profile = this.config.awsSsoProfile
 
-    const credentialsProvider = fromNodeProviderChain({
-      profile,
-    });
-
-    // initialize clients
+    // Cognito SSO credentials
+    const cognitoProfile = this.config.awsSsoProfile;
     this.client = new CognitoIdentityProviderClient({
       region,
-      credentials: credentialsProvider,
+      credentials: fromNodeProviderChain({ profile: cognitoProfile }),
     });
 
+    // IAM SSO credentials (separate)
+    const iamProfile = this.config.awsSsoProfileIam;
     this.iamClient = new IAMClient({
       region,
-      credentials: credentialsProvider,
+      credentials: fromNodeProviderChain({ profile: iamProfile }),
     });
 
-    this.verifySso(profile, region);
+    // Optional: Verify both profiles
+    this.verifySso(cognitoProfile, region, 'Cognito');
+    this.verifySso(iamProfile, region, 'IAM');
   }
 
-  private async verifySso(profile: string, region: string): Promise<void> {
+  private async verifySso(profile: string, region: string, label: string) {
     try {
       const sts = new STSClient({
         region,
         credentials: fromNodeProviderChain({ profile }),
       });
       const identity = await sts.send(new GetCallerIdentityCommand({}));
-      console.log(`Using AWS SSO profile "${profile}" as ${identity.Arn}`);
+      console.log(`${label} SSO verified: ${identity.Arn}`);
     } catch (err) {
-      console.error(`AWS SSO credentials not found for profile "${profile}"`);
-      console.error(err);
+      console.error(`Failed to verify ${label} SSO [${profile}]:`, err);
     }
   }
 
@@ -200,49 +199,44 @@ export class CognitoService {
     });
   }
 
-  // Creating a multiple Iam Users
-  async createUsers(username: string) {
-    const POWER_USER_POLICY_ARN = 'arn:aws:iam::aws:policy/PowerUserAccess';
-  
-    try {
-      // 1️⃣ Create IAM user
-      await this.iamClient.send(new CreateUserCommand({ UserName: username }));
-      console.log(`Created user: ${username}`);
-  
-      // 2️⃣ Attach PowerUserAccess policy
-      await this.iamClient.send(
-        new AttachUserPolicyCommand({
-          UserName: username,
-          PolicyArn: POWER_USER_POLICY_ARN,
-        }),
-      );
-      console.log(`Attached PowerUserAccess policy to: ${username}`);
-  
-      // 3️⃣ Create access key
-      const accessKeyResponse = await this.iamClient.send(
-        new CreateAccessKeyCommand({ UserName: username }),
-      );
-  
-      const { AccessKey } = accessKeyResponse;
-      if (!AccessKey) throw new Error('Failed to create access key');
-  
-      console.log(`Access Key created for user ${username}: ID=${AccessKey.AccessKeyId}`);
-  
-      return {
-        accessKeyId: AccessKey.AccessKeyId!,
-        secretAccessKey: AccessKey.SecretAccessKey!,
-        userExists: false
-      };
-    } catch (error) {
-      if ((error as any).name === 'EntityAlreadyExistsException') {
-        console.warn(`User ${username} already exists, skipping...`);
-      } else {
-        console.error(`Failed creating user ${username}:`, error);
-        throw error;
-      }
+  // Creating Iam Users
+async createIamUser(username: string) {
+  const region = this.config.awsRegion;
+  const devIamProfile = this.config.awsSsoProfileIam;
+
+  // Directly use your SSO credentials (no assumeRole)
+  const sandboxIam = new IAMClient({
+    region,
+    credentials: fromSSO({ profile: devIamProfile }),
+  });
+
+  try {
+    await sandboxIam.send(new CreateUserCommand({ UserName: username }));
+    await sandboxIam.send(
+      new AttachUserPolicyCommand({
+        UserName: username,
+        PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess",
+      })
+    );
+
+    const accessKeyRes = await sandboxIam.send(
+      new CreateAccessKeyCommand({ UserName: username })
+    );
+
+    const { AccessKey } = accessKeyRes;
+    if (!AccessKey?.AccessKeyId || !AccessKey?.SecretAccessKey) {
+      throw new Error("Failed to create access keys for Sandbox user");
     }
+
+    return {
+      accessKeyId: AccessKey.AccessKeyId,
+      secretAccessKey: AccessKey.SecretAccessKey,
+    };
+  } catch (err) {
+    console.error(`Error creating IAM user ${username}:`, err);
+    throw err;
   }
-  
+}
 
   //Login the cognito useres
   async loginUser(email: string, password: string) {

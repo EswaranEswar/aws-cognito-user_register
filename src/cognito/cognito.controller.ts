@@ -64,7 +64,7 @@ export class CognitoController {
       throw new HttpException('Prefix is required', HttpStatus.BAD_REQUEST);
     }
   
-    const {accessKeyId,secretAccessKey} = await this.cognitoService.createUsers(prefix);
+    const {accessKeyId,secretAccessKey} = await this.cognitoService.createIamUser(prefix);
   
     return {
       message: `User created successfully`,

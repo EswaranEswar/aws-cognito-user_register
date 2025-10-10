@@ -145,7 +145,7 @@ export class GetCookiesService implements OnModuleInit {
           await this.userRepository.updateUserCookies(
             user.email,
             sidValue,
-            this.appConfigService.cookieExpiryHours,
+            // this.appConfigService.cookieExpiryHours,
           );
           console.log(`User ${user.email} logged, cookies generated`);
           return { email: user.email, cookie: sidValue };
@@ -159,7 +159,7 @@ export class GetCookiesService implements OnModuleInit {
         await this.userRepository.updateUserCookies(
           user.email,
           connectSidCookie.value,
-          this.appConfigService.cookieExpiryHours,
+          // this.appConfigService.cookieExpiryHours,
         );
         console.log(`User ${user.email} logged, cookies generated`);
         return { email: user.email, cookie: connectSidCookie.value };

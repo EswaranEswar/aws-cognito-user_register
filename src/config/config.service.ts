@@ -13,6 +13,13 @@ export class AppConfigService {
     return this.configService.get<string>('AWS_REGION');
   }
 
+  get awsSsoProfile(): string {
+  return this.configService.get<string>('AWS_SSO_PROFILE');
+  }
+
+  get awsSsoProfileIam(): string {
+  return this.configService.get<string>('AWS_SSO_PROFILE_IAM');
+}
 
   get cognitoClientId(): string {
     return this.configService.get<string>('COGNITO_CLIENT_ID');
@@ -28,12 +35,6 @@ export class AppConfigService {
 
   get port(): number {
     return this.configService.get<number>('PORT');
-  }
-
-  get cookieExpiryHours(): number {
-    const raw = this.configService.get<string>('COOKIE_EXPIRY_HOURS');
-    const parsed = raw !== undefined ? Number(raw) : undefined;
-    return Number.isFinite(parsed) && (parsed as number) > 0 ? (parsed as number) : 48;
   }
 
   // --- Application-specific HTTP config ---
@@ -70,10 +71,6 @@ export class AppConfigService {
   get appRetries(): number {
     return this.configService.get<number>('APP_RETRIES') ?? 2;
   }
-
-  get awsSsoProfile(): string {
-  return this.configService.get<string>('AWS_SSO_PROFILE');
-}
 
   // Azure configuration
   get azureTenantId(): string {
