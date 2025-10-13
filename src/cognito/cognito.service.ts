@@ -12,11 +12,11 @@ import {
   DeleteUserPoolCommand,
   AdminSetUserPasswordCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { 
-  IAMClient, 
-  CreateUserCommand, 
-  AttachUserPolicyCommand, 
-  CreateAccessKeyCommand ,
+import {
+  IAMClient,
+  CreateUserCommand,
+  AttachUserPolicyCommand,
+  CreateAccessKeyCommand,
   DetachUserPolicyCommand,
   ListAttachedUserPoliciesCommand,
   ListAccessKeysCommand,
@@ -27,14 +27,17 @@ import {
   ListUserPoliciesCommand,
   DeleteUserPolicyCommand,
   DeleteUserCommand,
-} from "@aws-sdk/client-iam";
-import { fromNodeProviderChain, fromSSO } from '@aws-sdk/credential-providers'
+  ListUsersCommand as ListIAMUsersCommand,
+} from '@aws-sdk/client-iam';
+import { fromNodeProviderChain, fromSSO } from '@aws-sdk/credential-providers';
 import { AppConfigService } from '../config/config.service';
 import * as crypto from 'crypto';
-import { AssumeRoleCommand, GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
+import {
+  AssumeRoleCommand,
+  GetCallerIdentityCommand,
+  STSClient,
+} from '@aws-sdk/client-sts';
 const pLimit = require('p-limit');
-
-
 
 @Injectable()
 export class CognitoService {
@@ -77,7 +80,6 @@ export class CognitoService {
       console.error(`Failed to verify ${label} SSO [${profile}]:`, err);
     }
   }
-
 
   async getAllUsers(): Promise<any[]> {
     try {
@@ -200,43 +202,99 @@ export class CognitoService {
   }
 
   // Creating Iam Users
-async createIamUser(username: string) {
-  const region = this.config.awsRegion;
-  const devIamProfile = this.config.awsSsoProfileIam;
+  async createIamUser(username: string) {
+    const region = this.config.awsRegion;
+    const devIamProfile = this.config.awsSsoProfileIam;
 
-  // Directly use your SSO credentials (no assumeRole)
-  const sandboxIam = new IAMClient({
-    region,
-    credentials: fromSSO({ profile: devIamProfile }),
-  });
+    // Directly use your SSO credentials (no assumeRole)
+    const sandboxIam = new IAMClient({
+      region,
+      credentials: fromSSO({ profile: devIamProfile }),
+    });
 
-  try {
-    await sandboxIam.send(new CreateUserCommand({ UserName: username }));
-    await sandboxIam.send(
-      new AttachUserPolicyCommand({
-        UserName: username,
-        PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess",
-      })
-    );
+    try {
+      await sandboxIam.send(new CreateUserCommand({ UserName: username }));
+      await sandboxIam.send(
+        new AttachUserPolicyCommand({
+          UserName: username,
+          PolicyArn: 'arn:aws:iam::aws:policy/AdministratorAccess',
+        }),
+      );
 
-    const accessKeyRes = await sandboxIam.send(
-      new CreateAccessKeyCommand({ UserName: username })
-    );
+      const accessKeyRes = await sandboxIam.send(
+        new CreateAccessKeyCommand({ UserName: username }),
+      );
 
-    const { AccessKey } = accessKeyRes;
-    if (!AccessKey?.AccessKeyId || !AccessKey?.SecretAccessKey) {
-      throw new Error("Failed to create access keys for Sandbox user");
+      const { AccessKey } = accessKeyRes;
+      if (!AccessKey?.AccessKeyId || !AccessKey?.SecretAccessKey) {
+        throw new Error('Failed to create access keys for Sandbox user');
+      }
+
+      return {
+        accessKeyId: AccessKey.AccessKeyId,
+        secretAccessKey: AccessKey.SecretAccessKey,
+      };
+    } catch (err) {
+      console.error(`Error creating IAM user ${username}:`, err);
+      throw err;
     }
-
-    return {
-      accessKeyId: AccessKey.AccessKeyId,
-      secretAccessKey: AccessKey.SecretAccessKey,
-    };
-  } catch (err) {
-    console.error(`Error creating IAM user ${username}:`, err);
-    throw err;
   }
-}
+
+  // async createIamUser(username: string) {
+  //   const region = this.config.awsRegion;
+  //   const devSsoProfile = this.config.awsSsoProfileIam;
+
+  //   //Get Dev SSO credentials
+  //   const devCredentials = fromSSO({ profile: devSsoProfile });
+
+  //   //Assume Sandbox role
+  //   const sts = new STSClient({ region, credentials: devCredentials });
+
+  //   const assumeRoleResponse = await sts.send(
+  //     new AssumeRoleCommand({
+  //       RoleArn: "arn:aws:iam::503561454314:role/SandboxIamProvisionerRole", // Sandbox role ARN
+  //       RoleSessionName: `SandboxIamSession-${Date.now()}`,
+  //     })
+  //   );
+
+  //   const { AccessKeyId, SecretAccessKey, SessionToken } = assumeRoleResponse.Credentials!;
+
+  //   //Use temporary credentials to create IAM user in Sandbox
+  //   const sandboxIam = new IAMClient({
+  //     region,
+  //     credentials: {
+  //       accessKeyId: AccessKeyId,
+  //       secretAccessKey: SecretAccessKey,
+  //       sessionToken: SessionToken,
+  //     },
+  //   });
+
+  //   try {
+  //     await sandboxIam.send(new CreateUserCommand({ UserName: username }));
+  //     console.log(`Created IAM user in Sandbox: ${username}`);
+
+  //     await sandboxIam.send(
+  //       new AttachUserPolicyCommand({
+  //         UserName: username,
+  //         PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess",
+  //       })
+  //     );
+  //     console.log(`Attached Admin policy to: ${username}`);
+
+  //     const accessKeyRes = await sandboxIam.send(
+  //       new CreateAccessKeyCommand({ UserName: username })
+  //     );
+
+  //     const { AccessKey } = accessKeyRes;
+  //     return {
+  //       accessKeyId: AccessKey?.AccessKeyId,
+  //       secretAccessKey: AccessKey?.SecretAccessKey,
+  //     };
+  //   } catch (err) {
+  //     console.error(`Error creating Sandbox IAM user ${username}:`, err);
+  //     throw err;
+  //   }
+  // }
 
   //Login the cognito useres
   async loginUser(email: string, password: string) {
@@ -351,39 +409,225 @@ async createIamUser(username: string) {
   }
 
   async deleteIAMUser(username: string) {
-  // Detach policies
-  const attachedPolicies = await this.iamClient.send(new ListAttachedUserPoliciesCommand({ UserName: username }));
-  for (const policy of attachedPolicies.AttachedPolicies ?? []) {
-    await this.iamClient.send(new DetachUserPolicyCommand({ UserName: username, PolicyArn: policy.PolicyArn! }));
+    // Detach policies
+    const attachedPolicies = await this.iamClient.send(
+      new ListAttachedUserPoliciesCommand({ UserName: username }),
+    );
+    for (const policy of attachedPolicies.AttachedPolicies ?? []) {
+      await this.iamClient.send(
+        new DetachUserPolicyCommand({
+          UserName: username,
+          PolicyArn: policy.PolicyArn!,
+        }),
+      );
+    }
+
+    // Delete access keys
+    const accessKeys = await this.iamClient.send(
+      new ListAccessKeysCommand({ UserName: username }),
+    );
+    for (const key of accessKeys.AccessKeyMetadata ?? []) {
+      await this.iamClient.send(
+        new DeleteAccessKeyCommand({
+          UserName: username,
+          AccessKeyId: key.AccessKeyId!,
+        }),
+      );
+    }
+
+    // Delete login profile
+    try {
+      await this.iamClient.send(
+        new DeleteLoginProfileCommand({ UserName: username }),
+      );
+    } catch (err) {
+      // ignore if no login profile
+    }
+
+    // Remove from groups
+    const groups = await this.iamClient.send(
+      new ListGroupsForUserCommand({ UserName: username }),
+    );
+    for (const group of groups.Groups ?? []) {
+      await this.iamClient.send(
+        new RemoveUserFromGroupCommand({
+          GroupName: group.GroupName!,
+          UserName: username,
+        }),
+      );
+    }
+
+    // Remove inline policies
+    const policies = await this.iamClient.send(
+      new ListUserPoliciesCommand({ UserName: username }),
+    );
+    for (const policyName of policies.PolicyNames ?? []) {
+      await this.iamClient.send(
+        new DeleteUserPolicyCommand({
+          UserName: username,
+          PolicyName: policyName,
+        }),
+      );
+    }
+
+    // Finally delete the user
+    await this.iamClient.send(new DeleteUserCommand({ UserName: username }));
+    console.log(`Deleted user: ${username}`);
   }
 
-  // Delete access keys
-  const accessKeys = await this.iamClient.send(new ListAccessKeysCommand({ UserName: username }));
-  for (const key of accessKeys.AccessKeyMetadata ?? []) {
-    await this.iamClient.send(new DeleteAccessKeyCommand({ UserName: username, AccessKeyId: key.AccessKeyId! }));
+  // List all IAM users with optional filtering
+  async getAllIAMUsers(
+    usernameFilter?: string,
+    exactMatch: boolean = false
+  ): Promise<any[]> {
+    try {
+      const command = new ListIAMUsersCommand({});
+      const response = await this.iamClient.send(command);
+      const users = response.Users || [];
+
+      let filteredUsers = users;
+
+      // Apply username filter if provided
+      if (usernameFilter) {
+        if (exactMatch) {
+          // Exact match (case-insensitive)
+          filteredUsers = users.filter((user) =>
+            user.UserName?.toLowerCase() === usernameFilter.toLowerCase()
+          );
+        } else {
+          // Partial match (case-insensitive)
+          filteredUsers = users.filter((user) =>
+            user.UserName?.toLowerCase().includes(usernameFilter.toLowerCase())
+          );
+        }
+      }
+
+      const formattedUsers = filteredUsers.map((user) => ({
+        username: user.UserName,
+        userId: user.UserId,
+        arn: user.Arn,
+        createDate: user.CreateDate,
+        path: user.Path,
+      }));
+
+      const filterInfo = usernameFilter
+        ? ` (filtered by: ${usernameFilter}${exactMatch ? ' - exact match' : ' - partial match'})`
+        : '';
+
+      console.log(`IAM Users${filterInfo}:`, JSON.stringify(formattedUsers, null, 2));
+      return formattedUsers;
+    } catch (error) {
+      console.error('Failed to list IAM users:', error.message);
+      throw error;
+    }
   }
 
-  // Delete login profile
-  try {
-    await this.iamClient.send(new DeleteLoginProfileCommand({ UserName: username }));
-  } catch (err) {
-    // ignore if no login profile
+  // Get a specific IAM user by username
+  async getIAMUserByUsername(username: string): Promise<any | null> {
+    try {
+      const users = await this.getAllIAMUsers(username, true);
+      return users.length > 0 ? users[0] : null;
+    } catch (error) {
+      console.error(`Failed to get IAM user ${username}:`, error.message);
+      throw error;
+    }
   }
 
-  // Remove from groups
-  const groups = await this.iamClient.send(new ListGroupsForUserCommand({ UserName: username }));
-  for (const group of groups.Groups ?? []) {
-    await this.iamClient.send(new RemoveUserFromGroupCommand({ GroupName: group.GroupName!, UserName: username }));
+  // Get only usernames (filtered list)
+  async getIAMUsernames(
+    usernameFilter?: string,
+    exactMatch: boolean = false
+  ): Promise<string[]> {
+    try {
+      const command = new ListIAMUsersCommand({});
+      const response = await this.iamClient.send(command);
+      const users = response.Users || [];
+
+      let filteredUsers = users;
+
+      // Apply username filter if provided
+      if (usernameFilter) {
+        if (exactMatch) {
+          // Exact match (case-insensitive)
+          filteredUsers = users.filter((user) =>
+            user.UserName?.toLowerCase() === usernameFilter.toLowerCase()
+          );
+        } else {
+          // Partial match (case-insensitive)
+          filteredUsers = users.filter((user) =>
+            user.UserName?.toLowerCase().includes(usernameFilter.toLowerCase())
+          );
+        }
+      }
+
+      // Return only usernames
+      const usernames = filteredUsers
+        .map((user) => user.UserName)
+        .filter((username): username is string => username !== undefined);
+
+      const filterInfo = usernameFilter
+        ? ` (filtered by: ${usernameFilter}${exactMatch ? ' - exact match' : ' - partial match'})`
+        : '';
+
+      console.log(`IAM Usernames${filterInfo}:`, usernames);
+      return usernames;
+    } catch (error) {
+      console.error('Failed to list IAM usernames:', error.message);
+      throw error;
+    }
   }
 
-  // Remove inline policies
-  const policies = await this.iamClient.send(new ListUserPoliciesCommand({ UserName: username }));
-  for (const policyName of policies.PolicyNames ?? []) {
-    await this.iamClient.send(new DeleteUserPolicyCommand({ UserName: username, PolicyName: policyName }));
+  // Delete multiple IAM users from a list
+  async deleteMultipleIAMUsers(usernames: string[]): Promise<{
+    successful: string[],
+    failed: { username: string, error: string }[]
+  }> {
+    const successful: string[] = [];
+    const failed: { username: string, error: string }[] = [];
+
+    console.log(`Starting deletion of ${usernames.length} IAM users...`);
+
+    // Use the existing limit for concurrency control
+    const deletePromises = usernames.map(username =>
+      this.limit(async () => {
+        try {
+          await this.deleteIAMUser(username);
+          successful.push(username);
+          console.log(`✓ Successfully deleted IAM user: ${username}`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          failed.push({ username, error: errorMessage });
+          console.error(`✗ Failed to delete IAM user ${username}: ${errorMessage}`);
+        }
+      })
+    );
+
+    await Promise.all(deletePromises);
+
+    console.log(`Deletion completed. Successful: ${successful.length}, Failed: ${failed.length}`);
+
+    return { successful, failed };
   }
 
-  // Finally delete the user
-  await this.iamClient.send(new DeleteUserCommand({ UserName: username }));
-  console.log(`Deleted user: ${username}`);
-}
+  // Delete all IAM users (convenience method)
+  async deleteAllIAMUsers(): Promise<{
+    successful: string[],
+    failed: { username: string, error: string }[]
+  }> {
+    try {
+      const users = await this.getAllIAMUsers();
+      const usernames = users.map(user => user.username);
+
+      if (usernames.length === 0) {
+        console.log('No IAM users found to delete.');
+        return { successful: [], failed: [] };
+      }
+
+      console.log(`Found ${usernames.length} IAM users to delete.`);
+      return await this.deleteMultipleIAMUsers(usernames);
+    } catch (error) {
+      console.error('Failed to get IAM users for deletion:', error.message);
+      throw error;
+    }
+  }
 }
