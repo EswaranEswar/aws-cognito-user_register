@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CognitoService } from '../cognito/cognito.service';
-import { UserGeneratorService } from '../common/user-generator.service';
 import { UserRepository } from './user.repository';
-import { AppConfigService } from '../config/config.service';
 import { User } from './schemas/user.schema';
 import { GetCookiesService } from '../cookies/cookies.service';
 
@@ -13,9 +11,7 @@ export class UsersService {
 
   constructor(
     private cognitoService: CognitoService,
-    private userGenerator: UserGeneratorService,
     private userRepository: UserRepository,
-    private appConfigService: AppConfigService,
     private getCookiesService: GetCookiesService,
   ) {}
 
@@ -87,9 +83,7 @@ export class UsersService {
       }
 
       const cookieResult = await this.getCookiesService.generateCookiesForUser(email, password);
-      
-      const updatedUser = await this.userRepository.getUserByEmail(email);
-      
+            
       return {
         message: 'User logged in successfully and cookies generated',
         cookieGenerated: true,

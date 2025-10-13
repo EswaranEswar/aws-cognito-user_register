@@ -5,8 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './mongodb/database.module';
-import { SocketModule } from './websocket/socket.module';
-import { AzureModule } from './azureservices/azure.module';
+// import { AzureModule } from './azureservices/azure.module';
 
 @Module({
   imports: [
