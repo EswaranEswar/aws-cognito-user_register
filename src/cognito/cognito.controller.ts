@@ -87,83 +87,14 @@ export class CognitoController {
     }
 
     @Get('list-iam-users')
-    async getAllIAMUsers(
-      @Query('username') username?: string,
-      @Query('exactMatch') exactMatch?: string
-    ) {
-      try {
-        const isExactMatch = exactMatch === 'true';
-        const result = await this.cognitoService.getAllIAMUsers(username, isExactMatch);
-
-        return {
-          users: result,
-          count: result.length,
-          filter: username ? {
-            username,
-            exactMatch: isExactMatch,
-            type: isExactMatch ? 'exact' : 'partial'
-          } : null
-        };
-      } catch (error) {
+    async getAllIAMUsers(@Query() query: { field: string }) {
+      try{
+        console.log('filed from controller', query.field);
+        const users = await this.cognitoService.getAllIAMUsers(query.field);
+        return users;
+      }catch(error){
         throw new HttpException(
           `Failed to list IAM users: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-    }
-
-    @Get('iam-user/:username')
-    async getIAMUserByUsername(@Param('username') username: string) {
-      if (!username) {
-        throw new HttpException('Username is required', HttpStatus.BAD_REQUEST);
-      }
-
-      try {
-        const user = await this.cognitoService.getIAMUserByUsername(username);
-
-        if (!user) {
-          throw new HttpException(
-            `IAM user '${username}' not found`,
-            HttpStatus.NOT_FOUND,
-          );
-        }
-
-        return {
-          user,
-          found: true
-        };
-      } catch (error) {
-        if (error instanceof HttpException) {
-          throw error;
-        }
-        throw new HttpException(
-          `Failed to get IAM user: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-    }
-
-    @Get('iam-usernames')
-    async getIAMUsernames(
-      @Query('username') username?: string,
-      @Query('exactMatch') exactMatch?: string
-    ) {
-      try {
-        const isExactMatch = exactMatch === 'true';
-        const usernames = await this.cognitoService.getIAMUsernames(username, isExactMatch);
-
-        return {
-          usernames,
-          count: usernames.length,
-          filter: username ? {
-            username,
-            exactMatch: isExactMatch,
-            type: isExactMatch ? 'exact' : 'partial'
-          } : null
-        };
-      } catch (error) {
-        throw new HttpException(
-          `Failed to get IAM usernames: ${error.message}`,
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }

@@ -13,7 +13,6 @@ import { DatabaseModule } from './mongodb/database.module';
     UsersModule,
     AppConfigModule,
     DatabaseModule,
-    // SocketModule,
     // AzureModule
   ],
   providers: [AppService],

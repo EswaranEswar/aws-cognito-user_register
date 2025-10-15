@@ -477,58 +477,20 @@ export class CognitoService {
 
   // List all IAM users with optional filtering
   async getAllIAMUsers(
-    usernameFilter?: string,
-    exactMatch: boolean = false
+    filedName?: string,
   ): Promise<any[]> {
     try {
       const command = new ListIAMUsersCommand({});
       const response = await this.iamClient.send(command);
-      const users = response.Users || [];
-
-      let filteredUsers = users;
-
-      // Apply username filter if provided
-      if (usernameFilter) {
-        if (exactMatch) {
-          // Exact match (case-insensitive)
-          filteredUsers = users.filter((user) =>
-            user.UserName?.toLowerCase() === usernameFilter.toLowerCase()
-          );
-        } else {
-          // Partial match (case-insensitive)
-          filteredUsers = users.filter((user) =>
-            user.UserName?.toLowerCase().includes(usernameFilter.toLowerCase())
-          );
-        }
+      let users = response.Users || [];
+      console.log('users from congnito service before filter', filedName);
+      if (filedName) {
+        users = users.filter((user) => user[filedName]);
       }
-
-      const formattedUsers = filteredUsers.map((user) => ({
-        username: user.UserName,
-        userId: user.UserId,
-        arn: user.Arn,
-        createDate: user.CreateDate,
-        path: user.Path,
-      }));
-
-      const filterInfo = usernameFilter
-        ? ` (filtered by: ${usernameFilter}${exactMatch ? ' - exact match' : ' - partial match'})`
-        : '';
-
-      console.log(`IAM Users${filterInfo}:`, JSON.stringify(formattedUsers, null, 2));
-      return formattedUsers;
+      console.log('users from congnito service', users);
+      return users;
     } catch (error) {
       console.error('Failed to list IAM users:', error.message);
-      throw error;
-    }
-  }
-
-  // Get a specific IAM user by username
-  async getIAMUserByUsername(username: string): Promise<any | null> {
-    try {
-      const users = await this.getAllIAMUsers(username, true);
-      return users.length > 0 ? users[0] : null;
-    } catch (error) {
-      console.error(`Failed to get IAM user ${username}:`, error.message);
       throw error;
     }
   }
